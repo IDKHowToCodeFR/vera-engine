@@ -143,9 +143,24 @@ async def healthz():
     async with httpx.AsyncClient() as client:
         try:
             res = await client.get("http://127.0.0.1:11434/api/tags")
-            if "llama3.2" in res.text: return {"status": "ok", "local_model": "ready"}
+            if "llama3.2" in res.text: return {"status": "ok"}
         except: pass
-    return {"status": "starting", "message": "Ollama/Llama3.2 warming up"}
+    return {"status": "starting"}
+
+@app.get("/v1/metadata")
+async def metadata():
+    model_status = "unready"
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.get("http://127.0.0.1:11434/api/tags")
+            if "llama3.2" in res.text: model_status = "ready"
+        except: pass
+    return {
+        "team_name": "Vera Lead Solver", 
+        "version": "4.0",
+        "engine": "Llama-3.2-3B-Autonomous",
+        "local_model": model_status
+    }
 
 @app.post("/v1/context")
 def push_context(data: ContextPayload):
