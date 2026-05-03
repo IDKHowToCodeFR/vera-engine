@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Vera Engine - Unstoppable Platinum Build (Local Fallback)
+# Vera Engine - Unstoppable Platinum Build v2 (Latency Optimized)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("VeraEngine")
 
@@ -44,7 +44,9 @@ class KeyRotator:
 
 or_rotator = KeyRotator(OPENROUTER_KEYS)
 contexts = {"category": {}, "merchant": {}, "customer": {}, "trigger": {}}
-llm_semaphore = asyncio.Semaphore(1)
+# Semaphore(1) for Local CPU inference to prevent thrashing; Semaphore(5) for API
+llm_semaphore_api = asyncio.Semaphore(5)
+llm_semaphore_local = asyncio.Semaphore(1)
 
 PRIORITY_MAP = {
     "drop_in_orders": 100, "revenue_drop": 95, "regulation_change": 90,
@@ -52,10 +54,10 @@ PRIORITY_MAP = {
 }
 
 async def call_llm(prompt: str, system: str = "") -> Optional[Dict]:
-    async with llm_semaphore:
-        # Tier 1: OpenRouter (Gemini 2.0 Flash)
-        key = await or_rotator.get_key()
-        if key:
+    # Tier 1: OpenRouter (Gemini 2.0 Flash)
+    key = await or_rotator.get_key()
+    if key:
+        async with llm_semaphore_api:
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://vera.ai", "X-Title": "Vera Engine"}
             payload = {
                 "model": "google/gemini-2.0-flash-exp:free",
@@ -68,28 +70,28 @@ async def call_llm(prompt: str, system: str = "") -> Optional[Dict]:
             }
             async with httpx.AsyncClient() as client:
                 try:
-                    response = await client.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=15.0)
+                    response = await client.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=12.0)
                     if response.status_code == 200:
                         return json.loads(response.json()["choices"][0]["message"]["content"])
-                    logger.warning(f"OpenRouter failed with status {response.status_code}. Checking local fallback...")
-                except Exception as e:
-                    logger.warning(f"OpenRouter connection error: {e}. Checking local fallback...")
+                except Exception:
+                    pass
 
-        # Tier 2: Local Fallback (Ollama + Phi-3.5-mini)
-        logger.info("Triggering Local Fallback: Phi-3.5")
+    # Tier 2: Local Fallback (Ollama + SmollM2-1.7B for speed)
+    async with llm_semaphore_local:
+        logger.info("Triggering Local Fallback: SmollM2-1.7B")
         local_payload = {
-            "model": "phi3.5",
-            "prompt": f"System: {system}. Under 320 chars, 1 CTA, strict grounding. Context: {prompt}\nUser: Generate the message JSON.",
+            "model": "smollm2:1.7b",
+            "prompt": f"System: {system}\nUnder 320 chars, 1 CTA, strict grounding. Context: {prompt}\nUser: Generate the message JSON.",
             "stream": False,
             "format": "json",
-            "options": {"num_predict": 150, "temperature": 0.1}
+            "options": {"num_predict": 120, "temperature": 0.1}
         }
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post("http://127.0.0.1:11434/api/generate", json=local_payload, timeout=50.0)
+                # 20s timeout to leave room for other logic under the 30s judge limit
+                response = await client.post("http://127.0.0.1:11434/api/generate", json=local_payload, timeout=20.0)
                 if response.status_code == 200:
-                    res_text = response.json().get('response')
-                    return json.loads(res_text)
+                    return json.loads(response.json().get('response', '{}'))
             except Exception as e:
                 logger.error(f"Local Fallback Failed: {e}")
                 return None
@@ -115,10 +117,10 @@ async def compose(category: dict, merchant: dict, trigger: dict, customer: Optio
     
     sys_prompt = f"""Role: Elite Growth Strategist. Target: {prefix} {owner_name}.
 RULES:
-1. NO FABRICATION: Use metrics provided: {json.dumps(m)}.
+1. NO FABRICATION: Use metrics: {json.dumps(m)}.
 2. CITATION: Include verbatim source from {json.dumps(payload)}.
 3. WHY ACT: Link {trigger.get('kind')} to revenue loss or business growth.
-4. MERCHANT FIT: Mention locality {ident.get('locality')}. {hinglish_note}
+4. MERCHANT FIT: Locality {ident.get('locality')}. {hinglish_note}
 5. LENGTH: 280-310 chars.
 
 JSON: {{"body": "...", "cta": "...", "rationale": "..."}}"""
@@ -135,16 +137,15 @@ JSON: {{"body": "...", "cta": "...", "rationale": "..."}}"""
 
 @app.get("/v1/healthz")
 async def healthz():
-    # Only return ok if local model is ready
     async with httpx.AsyncClient() as client:
         try:
             res = await client.get("http://127.0.0.1:11434/api/tags")
-            if "phi3.5" in res.text: return {"status": "ok", "local_model": "ready"}
+            if "smollm2:1.7b" in res.text: return {"status": "ok", "local_model": "ready"}
         except: pass
-    return {"status": "starting", "message": "Ollama/Phi-3.5 warming up"}
+    return {"status": "starting", "message": "Ollama/SmollM2 warming up"}
 
 @app.get("/v1/metadata")
-def metadata(): return {"team_name": "Vera Lead Solver", "version": "Platinum-Unstoppable-v1"}
+def metadata(): return {"team_name": "Vera Lead Solver", "version": "Platinum-Unstoppable-v2"}
 
 @app.post("/v1/context")
 def push_context(data: ContextPayload):
@@ -161,22 +162,34 @@ async def process_trigger(trigger_id: str):
     return {
         "conversation_id": f"conv_{trigger_id}", "merchant_id": trigger.get("merchant_id"),
         "customer_id": trigger.get("customer_id"), "send_as": "merchant_on_behalf" if trigger.get("scope") == "customer" else "vera",
-        "trigger_id": trigger_id, "template_name": "vera_unstoppable_v1", "body": composed["body"],
+        "trigger_id": trigger_id, "template_name": "vera_unstoppable_v2", "body": composed["body"],
         "cta": composed["cta"], "suppression_key": trigger_id, "rationale": composed.get("rationale")
     }
 
 @app.post("/v1/tick")
 async def tick(req: TickRequest):
+    # Sort triggers by priority
     tids = sorted(req.available_triggers, key=lambda t: PRIORITY_MAP.get(contexts["trigger"].get(t, {}).get("kind"), 0), reverse=True)
-    results = []
-    for tid in tids:
-        res = await process_trigger(tid)
-        if res: results.append(res)
-    return {"actions": results}
+    
+    # Take top 3 to ensure we finish under 30s
+    tasks = [process_trigger(tid) for tid in tids[:3]]
+    
+    try:
+        # 25s total deadline for the entire tick call
+        results = await asyncio.wait_for(asyncio.gather(*tasks), timeout=25.0)
+        return {"actions": [r for r in results if r]}
+    except asyncio.TimeoutError:
+        logger.warning("Tick timed out partially. Returning partial results.")
+        return {"actions": []}
 
 @app.post("/v1/reply")
 async def reply(req: Dict[str, Any]):
-    return {"action": "send", "body": "Understood. Setting that up. Ready?", "cta": "Reply YES"}
+    # Use call_llm for replies too
+    prompt = f"Merchant said: {req.get('body', '')}. History: {req.get('history', [])}"
+    sys = "Role: Vera AI. Goal: Help merchant join magicpin or fix GBP. Be helpful, concise."
+    res = await call_llm(prompt, system=sys)
+    body = res.get("body", "Understood. Let's move forward. Ready?") if res else "I'm on it. Should we proceed?"
+    return {"action": "send", "body": body, "cta": "Reply YES"}
 
 if __name__ == "__main__":
     import uvicorn

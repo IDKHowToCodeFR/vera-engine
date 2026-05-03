@@ -3,7 +3,7 @@ FROM python:3.10-slim
 # System setup
 RUN apt-get update && apt-get install -y curl procps zstd && rm -rf /var/lib/apt/lists/*
 
-# Install Ollama via official script (More robust than direct binary link)
+# Install Ollama via official script
 RUN curl -fsSL https://ollama.com/install.sh | sh
 
 WORKDIR /app
@@ -17,8 +17,8 @@ ENV PORT=8086
 ENV OLLAMA_HOST=127.0.0.1:11434
 ENV PYTHONUNBUFFERED=1
 
-# Execution Script: Starts Ollama, pulls Phi, starts App
-RUN echo '#!/bin/bash\nollama serve & sleep 10 && ollama pull phi3.5 && python app.py' > /app/run.sh && \
+# Execution Script: Starts Ollama, pulls SmollM2 (Fast for CPU), starts App
+RUN echo '#!/bin/bash\nollama serve & sleep 10 && ollama pull smollm2:1.7b && python app.py' > /app/run.sh && \
     chmod +x /app/run.sh
 
 EXPOSE 8086
