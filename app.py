@@ -49,11 +49,11 @@ async def call_llm_local(prompt: str, system: str = "") -> Optional[Dict]:
             "prompt": f"System: {system}\nStrict Grounding. No Fabrication. Context: {prompt}\nUser: Return JSON message.",
             "stream": False,
             "format": "json",
-            "options": {"num_predict": 120, "temperature": 0.1}
+            "options": {"num_predict": 100, "temperature": 0.1}
         }
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post("http://127.0.0.1:11434/api/generate", json=payload, timeout=25.0)
+                response = await client.post("http://127.0.0.1:11434/api/generate", json=payload, timeout=28.0)
                 if response.status_code == 200:
                     return json.loads(response.json().get('response', '{}'))
             except Exception as e:
