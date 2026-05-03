@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Vera Engine - Platinum Cloud Deployment Build
+# Vera Engine - Unstoppable Platinum Build (Local Fallback)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("VeraEngine")
 
@@ -53,25 +53,46 @@ PRIORITY_MAP = {
 
 async def call_llm(prompt: str, system: str = "") -> Optional[Dict]:
     async with llm_semaphore:
+        # Tier 1: OpenRouter (Gemini 2.0 Flash)
         key = await or_rotator.get_key()
-        if not key: return None
-        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://vera.ai", "X-Title": "Vera Engine"}
-        payload = {
-            "model": "google/gemini-2.0-flash-exp:free",
-            "messages": [
-                {"role": "system", "content": system + "\n\nRETURN JSON ONLY. NO MARKDOWN. NO FABRICATION."},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.0,
-            "response_format": {"type": "json_object"}
+        if key:
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://vera.ai", "X-Title": "Vera Engine"}
+            payload = {
+                "model": "google/gemini-2.0-flash-exp:free",
+                "messages": [
+                    {"role": "system", "content": system + "\n\nRETURN JSON ONLY. NO MARKDOWN. NO FABRICATION."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.0,
+                "response_format": {"type": "json_object"}
+            }
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=15.0)
+                    if response.status_code == 200:
+                        return json.loads(response.json()["choices"][0]["message"]["content"])
+                    logger.warning(f"OpenRouter failed with status {response.status_code}. Checking local fallback...")
+                except Exception as e:
+                    logger.warning(f"OpenRouter connection error: {e}. Checking local fallback...")
+
+        # Tier 2: Local Fallback (Ollama + Phi-3.5-mini)
+        logger.info("Triggering Local Fallback: Phi-3.5")
+        local_payload = {
+            "model": "phi3.5",
+            "prompt": f"System: {system}. Under 320 chars, 1 CTA, strict grounding. Context: {prompt}\nUser: Generate the message JSON.",
+            "stream": False,
+            "format": "json",
+            "options": {"num_predict": 150, "temperature": 0.1}
         }
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=60.0)
+                response = await client.post("http://127.0.0.1:11434/api/generate", json=local_payload, timeout=50.0)
                 if response.status_code == 200:
-                    return json.loads(response.json()["choices"][0]["message"]["content"])
+                    res_text = response.json().get('response')
+                    return json.loads(res_text)
+            except Exception as e:
+                logger.error(f"Local Fallback Failed: {e}")
                 return None
-            except Exception: return None
 
 def prune_message(text: str) -> str:
     text = text.replace("\n", " ").strip()
@@ -107,16 +128,23 @@ JSON: {{"body": "...", "cta": "...", "rationale": "..."}}"""
     if not res:
         v, c = m.get('views', '2410'), m.get('calls', '18')
         body = f"{prefix} {owner_name}, noticed {v} views and {c} calls in {ident.get('locality')}. Found critical {trigger.get('kind')} update. Potential 12% revenue lift. Review now?"
-        res = {"body": body, "cta": "Reply YES", "rationale": "Fallback"}
+        res = {"body": body, "cta": "Reply YES", "rationale": "Hard Fallback"}
     
     res["body"] = prune_message(res.get("body", ""))
     return res
 
 @app.get("/v1/healthz")
-def healthz(): return {"status": "ok"}
+async def healthz():
+    # Only return ok if local model is ready
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.get("http://127.0.0.1:11434/api/tags")
+            if "phi3.5" in res.text: return {"status": "ok", "local_model": "ready"}
+        except: pass
+    return {"status": "starting", "message": "Ollama/Phi-3.5 warming up"}
 
 @app.get("/v1/metadata")
-def metadata(): return {"team_name": "Vera Lead Solver", "version": "Platinum-Docker-v1"}
+def metadata(): return {"team_name": "Vera Lead Solver", "version": "Platinum-Unstoppable-v1"}
 
 @app.post("/v1/context")
 def push_context(data: ContextPayload):
@@ -133,7 +161,7 @@ async def process_trigger(trigger_id: str):
     return {
         "conversation_id": f"conv_{trigger_id}", "merchant_id": trigger.get("merchant_id"),
         "customer_id": trigger.get("customer_id"), "send_as": "merchant_on_behalf" if trigger.get("scope") == "customer" else "vera",
-        "trigger_id": trigger_id, "template_name": "vera_plat_v1", "body": composed["body"],
+        "trigger_id": trigger_id, "template_name": "vera_unstoppable_v1", "body": composed["body"],
         "cta": composed["cta"], "suppression_key": trigger_id, "rationale": composed.get("rationale")
     }
 
@@ -144,7 +172,6 @@ async def tick(req: TickRequest):
     for tid in tids:
         res = await process_trigger(tid)
         if res: results.append(res)
-        await asyncio.sleep(2.0)
     return {"actions": results}
 
 @app.post("/v1/reply")
