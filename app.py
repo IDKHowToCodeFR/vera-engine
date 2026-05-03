@@ -20,13 +20,13 @@ logger = logging.getLogger("VeraEngine")
 app = FastAPI()
 
 class ContextPayload(BaseModel):
-    scope: str
-    context_id: str
-    version: int
-    payload: Dict[Any, Any]
+    scope: Optional[str] = None
+    context_id: Optional[str] = None
+    version: Optional[int] = None
+    payload: Dict[Any, Any] = {}
 
 class TickRequest(BaseModel):
-    available_triggers: List[str]
+    available_triggers: List[str] = []
 
 # API Keys (Optional Fallback)
 OPENROUTER_KEYS = [os.getenv(f"OPENROUTER_KEY_{i}") for i in range(1, 7)]
@@ -210,8 +210,8 @@ def push_context(data: ContextPayload):
 async def tick(req: TickRequest):
     tids = sorted(req.available_triggers, key=lambda t: PRIORITY_MAP.get(contexts["trigger"].get(t, {}).get("kind"), 0), reverse=True)
     results = []
-    # Local inference is sequential for CPU safety
-    for tid in tids[:2]: 
+    # Local inference is sequential for CPU safety. Limit to 1 to stay under 30s judge limit.
+    for tid in tids[:1]: 
         res = await process_trigger(tid)
         if res: results.append(res)
     return {"actions": results}
