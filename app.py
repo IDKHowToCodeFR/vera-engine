@@ -94,9 +94,23 @@ async def compose(category: dict, merchant: dict, trigger: dict, customer: Optio
     lang_pref = ident.get('languages', ['en'])
     hinglish_note = "USE NATURAL HINGLISH (50% English words, 50% Hindi script/transliteration)." if 'hi' in lang_pref else "USE PROFESSIONAL ENGLISH."
     
+    # Knowledge-Driven Prioritization
+    beats = category.get("seasonal_beats", [])
+    trends = category.get("trend_signals", [])
+    knowledge_anchor = ""
+    if beats:
+        knowledge_anchor = f"PRIORITY BEAT: {json.dumps(beats[0])}. "
+    elif trends:
+        knowledge_anchor = f"PRIORITY TREND: {json.dumps(trends[0])}. "
+
     grounding = f"Metrics: {json.dumps(m)}. Source: {json.dumps(payload)}." if m else "No metrics. Use curiosity hook."
     sys_prompt = f"""Role: Growth Strategist. Target: {prefix} {owner_name}.
-RULES: 1. NO FABRICATION. {grounding} 2. CITATION required. 3. Locality {ident.get('locality')}. {hinglish_note} 4. 280-310 chars.
+RULES: 
+1. KNOWLEDGE ANCHOR: {knowledge_anchor}Use this industry insight as the 'Why Now' hook.
+2. NO FABRICATION. {grounding} 
+3. CITATION required. 
+4. Locality {ident.get('locality')}. {hinglish_note} 
+5. 280-310 chars.
 JSON: {{"body": "...", "cta": "...", "rationale": "..."}}"""
 
     prompt = f"CONTEXT: {json.dumps({'merchant': ident, 'trigger': trigger})}"
@@ -149,9 +163,41 @@ async def process_trigger(trigger_id: str):
         "trigger_id": trigger_id, "body": composed["body"], "cta": composed["cta"]
     }
 
+AUTO_REPLY_PATTERNS = [
+    r"thank you for contacting",
+    r"we are currently away",
+    r"this is an automated message",
+    r"business hours",
+    r"get back to you shortly",
+    r"auto-reply",
+    r"canned response"
+]
+
 @app.post("/v1/reply")
 async def reply(req: Dict[str, Any]):
-    return {"action": "send", "body": "Understood. Proceed?", "cta": "Reply YES"}
+    body = req.get("body", "").lower()
+    
+    # Fast-Path: Detect Merchant Auto-Reply
+    for pattern in AUTO_REPLY_PATTERNS:
+        if re.search(pattern, body):
+            logger.info(f"Auto-reply detected: {pattern}")
+            return {
+                "action": "wait", 
+                "wait_seconds": 3600, 
+                "rationale": "Merchant auto-reply detected. Waiting for human interaction to avoid loop."
+            }
+
+    # Normal Path: Use call_llm_local for replies
+    prompt = f"Merchant said: {req.get('body', '')}. History: {req.get('history', [])}"
+    sys = """Role: Vera AI Growth Strategist. 
+GOAL: If merchant shows interest in joining, renewing, or acting, provide immediate HIGH-VALUE CTA.
+RULE: Detect 'Intent Threshold'. Do not ask qualifying questions if they said 'YES' or 'I want to join'.
+TONE: Helpful, concise, assertive. 
+LIMIT: 100-150 chars."""
+    res = await call_llm_local(prompt, system=sys)
+    
+    reply_body = res.get("body", "Understood. Let's move forward. Ready?") if res else "I'm on it. Should we proceed?"
+    return {"action": "send", "body": reply_body, "cta": "Reply YES"}
 
 if __name__ == "__main__":
     import uvicorn
