@@ -17,8 +17,8 @@ ENV PORT=8086
 ENV OLLAMA_HOST=127.0.0.1:11434
 ENV PYTHONUNBUFFERED=1
 
-# Execution Script: Starts Ollama, pulls SmollM2 (Fast for CPU), starts App
-RUN echo '#!/bin/bash\nollama serve & sleep 10 && ollama pull smollm2:1.7b && python app.py' > /app/run.sh && \
+# Execution Script: Starts Ollama, pulls Llama 3.2 (3B - Optimal for CPU), starts App
+RUN echo '#!/bin/bash\nollama serve & sleep 10 && ollama pull llama3.2 && python app.py' > /app/run.sh && \
     chmod +x /app/run.sh
 
 EXPOSE 8086

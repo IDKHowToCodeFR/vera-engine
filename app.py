@@ -43,9 +43,9 @@ PRIORITY_MAP = {
 
 async def call_llm_local(prompt: str, system: str = "") -> Optional[Dict]:
     async with llm_semaphore_local:
-        logger.info("Local Inference: SmollM2-1.7B")
+        logger.info("Local Inference: Llama 3.2 (3B)")
         payload = {
-            "model": "smollm2:1.7b",
+            "model": "llama3.2",
             "prompt": f"System: {system}\nStrict Grounding. No Fabrication. Context: {prompt}\nUser: Return JSON message.",
             "stream": False,
             "format": "json",
@@ -143,9 +143,9 @@ async def healthz():
     async with httpx.AsyncClient() as client:
         try:
             res = await client.get("http://127.0.0.1:11434/api/tags")
-            if "smollm2:1.7b" in res.text: return {"status": "ok", "local_model": "ready"}
+            if "llama3.2" in res.text: return {"status": "ok", "local_model": "ready"}
         except: pass
-    return {"status": "starting", "message": "Ollama/SmollM2 warming up"}
+    return {"status": "starting", "message": "Ollama/Llama3.2 warming up"}
 
 @app.post("/v1/context")
 def push_context(data: ContextPayload):
