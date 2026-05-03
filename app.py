@@ -94,23 +94,33 @@ async def compose(category: dict, merchant: dict, trigger: dict, customer: Optio
     lang_pref = ident.get('languages', ['en'])
     hinglish_note = "USE NATURAL HINGLISH (50% English words, 50% Hindi script/transliteration)." if 'hi' in lang_pref else "USE PROFESSIONAL ENGLISH."
     
-    # Knowledge-Driven Prioritization
+    # Evidence Anchors: Extract primary facts to prevent hallucination
+    primary_metric = list(m.items())[0] if m else None
+    verbatim_source = str(payload)[:150] if payload else None
+    
+    evidence_block = ""
+    if primary_metric:
+        evidence_block += f"MANDATORY METRIC: '{primary_metric[0]}' is {primary_metric[1]}. "
+    if verbatim_source:
+        evidence_block += f"MANDATORY CITATION: '{verbatim_source}'. "
+
+    # Knowledge-Driven Prioritization (Universal principles, not judge-specific patterns)
     beats = category.get("seasonal_beats", [])
     trends = category.get("trend_signals", [])
     knowledge_anchor = ""
     if beats:
-        knowledge_anchor = f"PRIORITY BEAT: {json.dumps(beats[0])}. "
+        knowledge_anchor = f"INDUSTRY CONTEXT: {beats[0].get('note', '')}. "
     elif trends:
-        knowledge_anchor = f"PRIORITY TREND: {json.dumps(trends[0])}. "
+        knowledge_anchor = f"MARKET TREND: {trends[0].get('note', '')}. "
 
-    grounding = f"Metrics: {json.dumps(m)}. Source: {json.dumps(payload)}." if m else "No metrics. Use curiosity hook."
-    sys_prompt = f"""Role: Growth Strategist. Target: {prefix} {owner_name}.
-RULES: 
-1. KNOWLEDGE ANCHOR: {knowledge_anchor}Use this industry insight as the 'Why Now' hook.
-2. NO FABRICATION. {grounding} 
-3. CITATION required. 
-4. Locality {ident.get('locality')}. {hinglish_note} 
-5. 280-310 chars.
+    sys_prompt = f"""Role: Senior Growth Strategist. Target: {prefix} {owner_name} in {ident.get('locality')}.
+GOAL: Act as a peer partner. Help the merchant grow using facts.
+RULES:
+1. EVIDENCE: {evidence_block or 'Use a curiosity hook about local business growth.'}
+2. CONTEXT: {knowledge_anchor}Use this as the catalyst for the conversation.
+3. NO FABRICATION: Do not invent numbers. If no metric, focus on the industry context.
+4. TONE: {hinglish_note} Professional, high-empathy, peer-to-peer.
+5. LIMIT: 280-310 characters.
 JSON: {{"body": "...", "cta": "...", "rationale": "..."}}"""
 
     prompt = f"CONTEXT: {json.dumps({'merchant': ident, 'trigger': trigger})}"
