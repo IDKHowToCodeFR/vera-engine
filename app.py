@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Vera Engine - Autonomous Local-First Build
-# Priority: Ollama (SmollM2-1.7B) -> Fallback: OpenRouter
+# Priority: Ollama (Llama-3.2-3B) -> Fallback: OpenRouter
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("VeraEngine")
 
@@ -161,6 +161,21 @@ JSON: {{"body": "...", "cta": "...", "rationale": "..."}}"""
     
     res["body"] = prune_message(res.get("body", ""))
     return res
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Performing OpenRouter API Dry Run...")
+    if OPENROUTER_KEYS:
+        try:
+            res = await call_llm_api("ping", system="Respond with JSON pong")
+            if res:
+                logger.info("OpenRouter API Dry Run: SUCCESS")
+            else:
+                logger.warning("OpenRouter API Dry Run: FAILED (No response)")
+        except Exception as e:
+            logger.error(f"OpenRouter API Dry Run: ERROR - {e}")
+    else:
+        logger.warning("OpenRouter API Dry Run: SKIPPED (No keys found)")
 
 @app.get("/v1/healthz")
 async def healthz():
