@@ -173,13 +173,25 @@ AUTO_REPLY_PATTERNS = [
     r"canned response"
 ]
 
+HOSTILE_PATTERNS = [
+    r"stop", r"spam", r"useless", r"abuse", r"reporting", r"don't message", r"remove me"
+]
+
 @app.post("/v1/reply")
 async def reply(req: Dict[str, Any]):
-    body = req.get("body", "").lower()
+    msg = req.get("message", "").lower()
     
+    # Fast-Path: Detect Hostility
+    for pattern in HOSTILE_PATTERNS:
+        if re.search(pattern, msg):
+            return {
+                "action": "end", 
+                "rationale": f"Merchant expressed hostility/stop: {pattern}. Exiting gracefully."
+            }
+
     # Fast-Path: Detect Merchant Auto-Reply
     for pattern in AUTO_REPLY_PATTERNS:
-        if re.search(pattern, body):
+        if re.search(pattern, msg):
             logger.info(f"Auto-reply detected: {pattern}")
             return {
                 "action": "wait", 
@@ -188,15 +200,15 @@ async def reply(req: Dict[str, Any]):
             }
 
     # Normal Path: Use call_llm_local for replies
-    prompt = f"Merchant said: {req.get('body', '')}. History: {req.get('history', [])}"
+    prompt = f"Merchant said: {req.get('message', '')}. Turn: {req.get('turn_number')}. History: {req.get('history', [])}"
     sys = """Role: Vera AI Growth Strategist. 
-GOAL: If merchant shows interest in joining, renewing, or acting, provide immediate HIGH-VALUE CTA.
-RULE: Detect 'Intent Threshold'. Do not ask qualifying questions if they said 'YES' or 'I want to join'.
+GOAL: If merchant shows interest ('ok', 'lets do it', 'yes'), provide EXACT next step (e.g. 'I will renew your GBP now', 'I am setting up your patient recall').
+RULE: Detect 'Intent Threshold'. NO MORE qualifying questions if they said 'YES' or equivalent.
 TONE: Helpful, concise, assertive. 
 LIMIT: 100-150 chars."""
     res = await call_llm_local(prompt, system=sys)
     
-    reply_body = res.get("body", "Understood. Let's move forward. Ready?") if res else "I'm on it. Should we proceed?"
+    reply_body = res.get("body", "I'm on it. Setting that up for you now. Ready to proceed?") if res else "Understood. I'll get that started. Ready?"
     return {"action": "send", "body": reply_body, "cta": "Reply YES"}
 
 if __name__ == "__main__":
