@@ -49,7 +49,7 @@ async def call_llm_local(prompt: str, system: str = "") -> Optional[Dict]:
             "prompt": f"System: {system}\nStrict Grounding. No Fabrication. Context: {prompt}\nUser: Return JSON message.",
             "stream": False,
             "format": "json",
-            "options": {"num_predict": 100, "temperature": 0.1}
+            "options": {"num_predict": 80, "temperature": 0.1}
         }
         async with httpx.AsyncClient() as client:
             try:
