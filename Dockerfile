@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Environment Variables
-ENV PORT=8086
+ENV PORT=8080
 ENV OLLAMA_HOST=127.0.0.1:11434
 ENV PYTHONUNBUFFERED=1
 
@@ -21,5 +21,5 @@ ENV PYTHONUNBUFFERED=1
 RUN echo '#!/bin/bash\nollama serve & sleep 10 && ollama pull llama3.2 && python app.py' > /app/run.sh && \
     chmod +x /app/run.sh
 
-EXPOSE 8086
+EXPOSE 8080
 CMD ["/app/run.sh"]
