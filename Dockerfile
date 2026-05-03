@@ -1,7 +1,7 @@
 FROM python:3.10-slim
 
 # System setup
-RUN apt-get update && apt-get install -y curl procps && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl procps zstd && rm -rf /var/lib/apt/lists/*
 
 # Install Ollama via official script (More robust than direct binary link)
 RUN curl -fsSL https://ollama.com/install.sh | sh
