@@ -62,18 +62,42 @@ async def call_llm_local(prompt: str, system: str = "") -> Optional[Dict]:
 
 async def call_llm_api(prompt: str, system: str = "") -> Optional[Dict]:
     if not OPENROUTER_KEYS: return None
-    key = OPENROUTER_KEYS[0] # Simple use for fallback
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    payload = {
-        "model": "google/gemini-2.0-flash-exp:free",
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "response_format": {"type": "json_object"}
+    
+    # Tier 1 Hierarchy: Primary -> Secondary -> Backup
+    models = ["poolside/laguna-m.1:free", "tencent/hy3:free", "google/gemini-2.0-flash-exp:free"]
+    
+    key = OPENROUTER_KEYS[0]
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://huggingface.co/spaces",
+        "X-Title": "Vera Engine Platinum"
     }
+
     async with httpx.AsyncClient() as client:
-        try:
-            res = await client.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=10.0)
-            return json.loads(res.json()["choices"][0]["message"]["content"])
-        except: return None
+        for model in models:
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system + "\n\nRETURN JSON ONLY. NO MARKDOWN. NO FABRICATION."},
+                    {"role": "user", "content": prompt}
+                ],
+                "response_format": {"type": "json_object"}
+            }
+            try:
+                res = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions", 
+                    headers=headers, 
+                    json=payload, 
+                    timeout=10.0
+                )
+                if res.status_code == 200:
+                    return json.loads(res.json()["choices"][0]["message"]["content"])
+                logger.warning(f"OpenRouter model {model} failed with status {res.status_code}")
+            except Exception as e:
+                logger.warning(f"OpenRouter error with model {model}: {e}")
+                continue
+    return None
 
 def prune_message(text: str) -> str:
     text = text.replace("\n", " ").strip()
