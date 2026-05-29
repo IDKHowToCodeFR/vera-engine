@@ -185,4 +185,4 @@ async def reply(req: Dict[str, Any]):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8086)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
