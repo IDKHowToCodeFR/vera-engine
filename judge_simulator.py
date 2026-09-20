@@ -16,21 +16,23 @@ That's it!
 Author: magicpin AI Challenge Team
 """
 
+import os
+
 # =============================================================================
 # ██████  CONFIGURATION - EDIT THIS SECTION ██████
 # =============================================================================
 
 # Your bot's URL (where your bot is running)
-BOT_URL = "http://localhost:8080"
+BOT_URL = os.getenv("BOT_URL", "http://localhost:8086")
 
 # Choose your LLM provider: "openai", "anthropic", "gemini", "deepseek", "groq", "ollama", "openrouter"
-LLM_PROVIDER = "openai"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
 
 # Your API key (paste your key here)
-LLM_API_KEY = ""  # <-- PUT YOUR API KEY HERE
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 
 # Model to use (leave empty for default, or specify like "gpt-4o", "claude-3-5-sonnet-20241022", etc.)
-LLM_MODEL = ""  # <-- Optional: specify model or leave empty for default
+LLM_MODEL = os.getenv("LLM_MODEL", "llama3:8b")
 
 # For Ollama only: local server URL
 OLLAMA_URL = "http://localhost:11434"
