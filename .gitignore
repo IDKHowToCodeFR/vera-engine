@@ -9,3 +9,4 @@ judge_output.txt
 .vscode/
 .idea/
 *.log
+expanded/
