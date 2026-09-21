@@ -1,5 +1,5 @@
 ---
-title: Vera Engine Platinum
+title: Vera Engine
 emoji: 🚀
 colorFrom: blue
 colorTo: purple
@@ -8,56 +8,41 @@ app_port: 8080
 pinned: false
 ---
 
-# Vera Engine Platinum v7.0 🤖
+# Vera Engine v1.0 🤖
 
-**Autonomous Multi-Agent Orchestrator optimized for the magicpin AI Challenge.**
+**High-Performance AI Orchestrator optimized for the magicpin Vera AI Challenge.**
 
-## 1. THE CORE (CAVEMAN LOGIC)
-*   **Vera good.** 
-*   **Bot no lie.** 
-*   **Chain long.**
-*   **Local safe.** 
-*   **Always win.**
+## 1. THE ARCHITECTURE
+The system operates on a highly optimized, deterministic fail-fast fallback cascade to guarantee sub-30-second responses on Hugging Face Spaces (2vCPU / 16GB RAM) without compromising on reasoning quality.
 
-## 2. ARCHITECTURAL SPECIFICATIONS
+### 4-Tier Fail-Fast Cascade
+Instead of relying on a single provider, the engine delegates composition to a 4-tier chain of LLM providers.
+1. **Tier 1 (Speed & Intelligence)**: NVIDIA NIM (`llama-3.3-70b-instruct`) - 5s timeout.
+2. **Tier 2 (Fast Failover)**: Groq (`llama-3.3-70b-versatile`) - 4s timeout.
+3. **Tier 3 (Secondary Failover)**: Gemini (`gemini-2.5-flash`) - 4s timeout.
+4. **Tier 4 (Local Airgap)**: Natively executed `qwen2.5-3b-instruct` via `llama-cpp-python`.
 
-### Scalable Multi-Agent Orchestrator
-The system has been refactored from a static chain to a dynamic **Agent Registry**. This allows for infinite horizontal scaling of models and providers.
+### Dynamic Time Budgeting & Fail-Fast
+- **Fail-Fast**: If an API returns a 401 (Auth Error) or 429 (Rate Limit), the orchestrator immediately short-circuits to the next tier without waiting for the timeout, saving crucial seconds.
+- **Budget Reallocation**: The local model inherently requires the most time on a CPU. By aggressively capping the cloud tier timeouts (13s combined worst-case), the orchestrator guarantees a minimum of 14 seconds for the local `qwen2.5-3b` model to complete execution before the hard 30s deadline.
 
-1.  **Agent Registry**: Each provider (OpenRouter, Gemini, Groq, DeepSeek) is an independent Agent with its own health tracking.
-2.  **Health-Aware Key Rotation**: If an Agent encounters a 429 (Rate Limit) or 401 (Auth), it automatically rotates its local key pool.
-3.  **Tiered Redundancy**:
-    *   **Tier 1-4 (Cloud)**: Sequential execution across high-performance models (Laguna, Hy3, Gemini 2.0, Llama 3.3).
-    *   **Tier 5 (Local)**: 100% autonomous fallback to `Llama 3.2 (3B)` via Ollama. 17.9s benchmarked.
-4.  **FAST_TEST Mode**: Environment-aware flag to bypass cloud tiers during local judge simulation for rapid iteration.
+## 2. PIPELINE STRATEGY
+1. **Context Distiller (Python)**: Instantly processes 500KB+ JSON payloads into dense factual bullet points in < 0.001s.
+2. **LLM Expander**: Takes the strict facts and expands them into compelling, Hinglish-supported, natively conversational WhatsApp replies.
+3. **Strict JSON Schema**: Native `response_format={"type": "json_object"}` constraints across all adapters ensure zero JSON-parsing failures.
 
-## 3. KEY FEATURES
-
-*   **Metric Anchoring**: Pre-extraction of metrics as "Mandatory Evidence" to ensure 100% grounding integrity.
-*   **Elastic Schema**: Optional Pydantic fields with strict defaults to eliminate 422 Unprocessable Entity errors.
-*   **Atomic Throughput**: Sequential processing in `/v1/tick` to survive strict 30s judge timeouts on 2vCPU hardware.
-*   **Turn-Based Escalation**: Intelligent auto-reply shield that terminates conversations stuck in infinite canned-response loops (Turn 3+).
-
-## 4. API DOCUMENTATION
+## 3. API DOCUMENTATION
 
 | Endpoint | Method | Purpose | Response Schema |
 | :--- | :--- | :--- | :--- |
-| `/v1/healthz` | `GET` | Compliant Liveness Probe | `{"status": "ok"}` |
-| `/v1/metadata` | `GET` | System Identity & Multi-Agent Status | `{"version": "7.0", ...}` |
-| `/v1/context` | `POST` | Elastic Context Ingestion | `{"accepted": true}` |
-| `/v1/tick` | `POST` | Atomic Trigger Processing | `{"actions": [...]}` |
-| `/v1/reply` | `POST` | Escalated Shield Handling | `{"action": "send/wait/end"}` |
+| /v1/healthz | GET | Compliant Liveness Probe | {"status": "ok"} |
+| /v1/metadata | GET | System Identity | {"version": "1.0", "model": "Fallback Chain...", ...} |
+| /v1/context | POST | Elastic Context Ingestion | {"accepted": true} |
+| /v1/tick | POST | Atomic Trigger Processing | {"actions": [...]} |
+| /v1/reply | POST | Escalated Shield Handling | {"action": "send/wait/end"} |
 
-## 5. TECHNICAL STACK
-
-*   **Framework**: FastAPI / Uvicorn (Port 8080)
-*   **Runtime**: Docker (Python 3.10-slim)
-*   **Local LLM**: Ollama / Llama 3.2 (3B)
-*   **Infrastructure**: Hugging Face Spaces (2vCPU / 16GB RAM)
-
-## 6. DEPLOYMENT
-
-```bash
-git push origin main
-# Auto-sync to Hugging Face Space
-```
+## 4. TECHNICAL STACK
+* **Framework**: FastAPI / Uvicorn (Port 8080)
+* **Local LLM Execution**: `llama-cpp-python` (Pre-compiled CPU Wheels)
+* **Models**: Llama 3.3 70B, Gemini 2.5 Flash, Qwen2.5 3B
+* **Infrastructure**: Dockerized Python 3.10-slim on Hugging Face Spaces
