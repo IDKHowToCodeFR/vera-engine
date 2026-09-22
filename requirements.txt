@@ -6,4 +6,6 @@ python-dotenv
 openai
 groq
 google-generativeai
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 llama-cpp-python
+
