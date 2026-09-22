@@ -38,11 +38,13 @@ try:
     LOCAL_7B_P95 = 37.47 
     
     if LOCAL_7B_P95 <= 14.0:
-        local_repo = "bartowski/Qwen2.5-7B-Instruct-GGUF"`r`n        local_file = "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
+        local_repo = "bartowski/Qwen2.5-7B-Instruct-GGUF"
+        local_file = "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
         LOCAL_MAX_TOKENS = 150
         logger.info(f"Using 7b for local tier since p95 latency ({LOCAL_7B_P95}s) is within 14s budget.")
     else:
-        local_repo = "Qwen/Qwen2.5-3B-Instruct-GGUF"`r`n        local_file = "qwen2.5-3b-instruct-q4_k_m.gguf"
+        local_repo = "Qwen/Qwen2.5-3B-Instruct-GGUF"
+        local_file = "qwen2.5-3b-instruct-q4_k_m.gguf"
         LOCAL_MAX_TOKENS = 250
         logger.info(f"7b p95 {LOCAL_7B_P95}s exceeds 14s budget, using 3b instead.")
         
