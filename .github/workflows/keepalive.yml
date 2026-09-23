@@ -1,0 +1,15 @@
+name: Keep HF Space Alive
+
+on:
+  schedule:
+    # Runs every 24 hours (well within the 48h limit)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allows you to trigger it manually if needed
+
+jobs:
+  ping-space:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Healthz Endpoint
+        run: |
+          curl -f https://idkhowtocodefr-vera-engine.hf.space/v1/healthz
