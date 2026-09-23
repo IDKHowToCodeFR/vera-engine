@@ -10,32 +10,90 @@ A common anti-pattern in AI composition engines is feeding a massive 500KB JSON 
 
 ```mermaid
 flowchart TD
-    subgraph Data Input
-        A[JSON Context: 500KB] --> B[FastAPI Endpoint]
-    end
 
-    subgraph Stage 1: The Python Caveman
-        B --> C{Context Distiller}
-        C -->|Extracts Metrics| D[Views, CTR, Offers]
-        C -->|Selects Tone| E[Professional/Hinglish]
-        C -->|Identifies Compulsion| F[Loss Aversion/Urgency]
-    end
+subgraph group_api["API and Context"]
+  node_context_api["Context Ingestion<br/>[app.py]"]
+  node_context_store[("Context State<br/>[app.py]")]
+  node_tick_api["Trigger API<br/>[app.py]"]
+  node_reply_api["Reply API<br/>[app.py]"]
+  node_health_metadata["Health and Metadata<br/>[app.py]"]
+end
 
-    subgraph Stage 2: The LLM Expander
-        D & E & F --> G[Compressed Fact Sheet]
-        G --> H{Provider Adapter Registry}
-        H -->|Tier 1-3 Cloud| I[NVIDIA / Groq / Gemini]
-        H -->|Tier 4 Fallback| J[Local Llama-CPP 3B]
-        I & J --> K[Strict JSON Output]
-    end
-    
-    K --> L((WhatsApp Message & CTA))
+subgraph group_engagement["Engagement Workflow"]
+  node_trigger_processing["Trigger Processing<br/>[app.py]"]
+  node_reply_classification["Reply Classification<br/>[app.py]"]
+end
 
-    %% Modern UI Colors
-    style C fill:#3b82f6,stroke:#1e3a8a,stroke-width:2px,color:#fff
-    style G fill:#8b5cf6,stroke:#4c1d95,stroke-width:2px,color:#fff
-    style K fill:#10b981,stroke:#064e3b,stroke-width:2px,color:#fff
-    style L fill:#f59e0b,stroke:#78350f,stroke-width:2px,color:#fff
+subgraph group_composition["Message Composition"]
+  node_composer["Context Distiller<br/>[composer.py]"]
+  node_prompt_builder["Prompt Builder<br/>[prompts.py]"]
+  node_output_validation["Validation and Repair<br/>[composer.py]"]
+end
+
+subgraph group_inference["Model Inference"]
+  node_model_router["Fallback Composer<br/>[composer.py]"]
+  node_llm_adapter["Model Adapters<br/>[llm.py]"]
+  node_local_model["Local Qwen Model<br/>[llm.py]"]
+end
+
+node_client(("Challenge Client"))
+node_nvidia["NVIDIA NIM"]
+node_groq["Groq"]
+node_gemini["Gemini"]
+node_seed_data["Challenge Seed Data"]
+
+node_client -->|"pushes context"| node_context_api
+node_context_api -->|"stores payloads"| node_context_store
+node_client -->|"submits triggers"| node_tick_api
+node_tick_api -->|"reads contexts"| node_context_store
+node_tick_api -->|"dispatches"| node_trigger_processing
+node_trigger_processing -->|"loads context"| node_context_store
+node_trigger_processing -->|"composes message"| node_composer
+node_composer -->|"builds local prompt"| node_prompt_builder
+node_composer -->|"requests generation"| node_model_router
+node_model_router -->|"tries model tiers"| node_llm_adapter
+node_llm_adapter -->|"calls first"| node_nvidia
+node_llm_adapter -->|"falls back"| node_groq
+node_llm_adapter -->|"falls back"| node_gemini
+node_llm_adapter -->|"falls back"| node_local_model
+node_model_router -->|"validates and repairs"| node_output_validation
+node_output_validation -->|"returns result"| node_model_router
+node_trigger_processing -->|"returns action"| node_tick_api
+node_client -->|"posts reply"| node_reply_api
+node_reply_api -->|"classifies message"| node_reply_classification
+node_reply_classification -->|"generates response"| node_model_router
+node_reply_api -->|"returns decision"| node_client
+node_client -->|"requests status"| node_health_metadata
+node_seed_data -.->|"supplies test contexts"| node_client
+
+click node_context_api "https://github.com/idkhowtocodefr/vera-engine/blob/main/app.py"
+click node_context_store "https://github.com/idkhowtocodefr/vera-engine/blob/main/app.py"
+click node_tick_api "https://github.com/idkhowtocodefr/vera-engine/blob/main/app.py"
+click node_reply_api "https://github.com/idkhowtocodefr/vera-engine/blob/main/app.py"
+click node_health_metadata "https://github.com/idkhowtocodefr/vera-engine/blob/main/app.py"
+click node_trigger_processing "https://github.com/idkhowtocodefr/vera-engine/blob/main/app.py"
+click node_reply_classification "https://github.com/idkhowtocodefr/vera-engine/blob/main/app.py"
+click node_composer "https://github.com/idkhowtocodefr/vera-engine/blob/main/scripts/composer.py"
+click node_prompt_builder "https://github.com/idkhowtocodefr/vera-engine/blob/main/scripts/prompts.py"
+click node_output_validation "https://github.com/idkhowtocodefr/vera-engine/blob/main/scripts/composer.py"
+click node_model_router "https://github.com/idkhowtocodefr/vera-engine/blob/main/scripts/composer.py"
+click node_llm_adapter "https://github.com/idkhowtocodefr/vera-engine/blob/main/scripts/llm.py"
+click node_local_model "https://github.com/idkhowtocodefr/vera-engine/blob/main/scripts/llm.py"
+click node_seed_data "https://github.com/idkhowtocodefr/vera-engine/tree/main/dataset"
+
+classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
+classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
+classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
+classDef toneMint fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
+classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
+classDef toneIndigo fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81
+classDef toneTeal fill:#ccfbf1,stroke:#0f766e,stroke-width:1.5px,color:#134e4a
+class node_context_api,node_context_store,node_tick_api,node_reply_api,node_health_metadata,node_client toneBlue
+class node_trigger_processing,node_reply_classification toneAmber
+class node_composer,node_prompt_builder,node_output_validation toneMint
+class node_model_router,node_llm_adapter,node_local_model toneRose
+class node_nvidia,node_groq,node_gemini toneIndigo
+class node_seed_data toneTeal
 ```
 
 ### Separation of Concerns (Two-Stage Pipeline):
