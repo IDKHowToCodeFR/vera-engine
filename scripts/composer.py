@@ -64,7 +64,7 @@ async def compose_with_fallback(prompt: str, full_system: str, local_system: str
                     return await func(p, system_to_use, timeout)
                 else:
                     try:
-                        return await asyncio.wait_for(func(p, system_to_use), timeout=deadline - time.time())
+                        return await asyncio.wait_for(func(p, system_to_use, deadline), timeout=deadline - time.time())
                     except asyncio.TimeoutError:
                         return None
                         
@@ -140,7 +140,7 @@ async def compose(category: dict, merchant: dict, trigger: dict, customer: Optio
     # 2. Dynamic Tone & Taboos
     voice = category.get("voice", {})
     tone = voice.get("tone", "professional peer")
-    taboos_list = voice.get("taboos", ["internal metrics", "JSON", "system", "guaranteed"])
+    taboos_list = voice.get("taboos", ["guaranteed", "100%", "click here", "promise"])
     taboos = ", ".join(taboos_list)
     
     prefix = "Dr. " if category.get('slug') == 'dentists' else ""
@@ -226,5 +226,6 @@ Example Output format for a good message:
     
     # Add sender attribution required by the challenge
     res["send_as"] = "merchant_on_behalf" if customer else "vera"
-    _cache[key] = res
+    if res.get("rationale") != "fallback_default":
+        _cache[key] = res
     return res
