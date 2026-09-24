@@ -3,6 +3,7 @@ import re
 import logging
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -29,6 +30,10 @@ class TickRequest(BaseModel):
     available_triggers: List[str] = []
 
 contexts = {"category": {}, "merchant": {}, "customer": {}, "trigger": {}}
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/docs")
 
 @app.get("/v1/healthz")
 async def healthz():
