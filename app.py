@@ -64,6 +64,10 @@ async def metadata():
 
 @app.post("/v1/context")
 def push_context(data: ContextPayload):
+    current = contexts.get(data.scope, {}).get(data.context_id)
+    if current and current.get("version", 0) >= (data.version or 0):
+        return {"accepted": True, "ack_id": f"ack_{data.context_id}_v{data.version}", "stored_at": "2026-04-26T00:00:00Z", "note": "ignored_stale_version"}
+        
     contexts[data.scope][data.context_id] = {"version": data.version, "payload": data.payload}
     return {"accepted": True, "ack_id": f"ack_{data.context_id}_v{data.version}", "stored_at": "2026-04-26T00:00:00Z"}
 
