@@ -59,7 +59,7 @@ async def call_nvidia(prompt: str, system: str, timeout: float) -> Optional[dict
     key = os.getenv("NVIDIA_API_KEY")
     if not key: return None
     payload = {
-        "model": "meta/llama-3.1-70b-instruct",
+        "model": "meta/llama3-70b-instruct",
         "messages": [{"role": "system", "content": system + "\n\nRETURN JSON ONLY."}, {"role": "user", "content": prompt}],
         "temperature": 0.3,
         "response_format": {"type": "json_object"}
@@ -73,7 +73,7 @@ async def call_groq(prompt: str, system: str, timeout: float) -> Optional[dict]:
     key = os.getenv("GROQ_API_KEY")
     if not key: return None
     payload = {
-        "model": "llama-3.1-70b-versatile",
+        "model": "llama3-70b-8192",
         "messages": [{"role": "system", "content": system + "\n\nRETURN JSON ONLY."}, {"role": "user", "content": prompt}],
         "temperature": 0.3,
         "response_format": {"type": "json_object"}
