@@ -110,12 +110,20 @@ async def reply(req: Dict[str, Any]):
         if re.search(p, msg):
             if turn > 2: return {"action": "end", "rationale": "Repeated auto-reply."}
             return {"action": "wait", "wait_seconds": 3600, "rationale": "Auto-reply wait."}
+    reply_schema = 'RETURN JSON FORMAT WITH keys "body", "cta", and "rationale".'
+    
     for p in INTENT_PATTERNS:
         if re.search(p, msg):
-            res = await compose_with_fallback(f"Merchant said: {msg}", system="Role: Vera AI. Interest detected. Provide EXACT next step action. 15 words max.")
+            res = await compose_with_fallback(
+                f"Merchant said: {msg}", 
+                full_system=f"Role: Vera AI. Interest detected. Provide EXACT next step action. 15 words max. {reply_schema}"
+            )
             return {"action": "send", "body": res.get("body", "I'm setting that up for you now.") if res else "I'm setting that up now.", "cta": "Reply YES"}
 
-    res = await compose_with_fallback(f"Merchant: {msg}", system="Role: Vera AI. Growth Strategist. Be concise.")
+    res = await compose_with_fallback(
+        f"Merchant: {msg}", 
+        full_system=f"Role: Vera AI. Growth Strategist. Be concise. {reply_schema}"
+    )
     return {"action": "send", "body": res.get("body", "Understood. Proceed?") if res else "Understood. Proceed?", "cta": "Reply YES"}
 
 if __name__ == "__main__":
