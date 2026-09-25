@@ -59,7 +59,7 @@ async def call_nvidia(prompt: str, system: str, timeout: float) -> Optional[dict
     key = os.getenv("NVIDIA_API_KEY")
     if not key: return None
     payload = {
-        "model": "meta/llama-3.3-70b-instruct",
+        "model": "meta/llama-3.1-70b-instruct",
         "messages": [{"role": "system", "content": system + "\n\nRETURN JSON ONLY."}, {"role": "user", "content": prompt}],
         "temperature": 0.3,
         "response_format": {"type": "json_object"}
@@ -73,7 +73,7 @@ async def call_groq(prompt: str, system: str, timeout: float) -> Optional[dict]:
     key = os.getenv("GROQ_API_KEY")
     if not key: return None
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama-3.1-70b-versatile",
         "messages": [{"role": "system", "content": system + "\n\nRETURN JSON ONLY."}, {"role": "user", "content": prompt}],
         "temperature": 0.3,
         "response_format": {"type": "json_object"}
@@ -92,8 +92,8 @@ async def call_gemini(prompt: str, system: str, timeout: float) -> Optional[dict
         "generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"}
     }
     async with httpx.AsyncClient() as client:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
-        res = await client.post(url, json=payload, timeout=timeout)
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+        res = await client.post(url, headers={"x-goog-api-key": key}, json=payload, timeout=timeout)
         res.raise_for_status()
         return clean_json(res.json()["candidates"][0]["content"]["parts"][0]["text"])
 
