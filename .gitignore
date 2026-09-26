@@ -1,5 +1,8 @@
 .env
 venv/
+.venv/
+uv.lock
+pyproject.toml
 __pycache__/
 *.pyc
 judge_output.txt
