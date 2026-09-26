@@ -73,7 +73,7 @@ async def call_groq(prompt: str, system: str, timeout: float) -> Optional[dict]:
     key = os.getenv("GROQ_API_KEY")
     if not key: return None
     payload = {
-        "model": "llama3-70b-8192",
+        "model": "openai/gpt-oss-20b",
         "messages": [{"role": "system", "content": system + "\n\nRETURN JSON ONLY."}, {"role": "user", "content": prompt}],
         "temperature": 0.3,
         "response_format": {"type": "json_object"}
