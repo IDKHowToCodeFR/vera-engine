@@ -3,3 +3,7 @@ uvicorn
 httpx
 pydantic
 python-dotenv
+openai
+groq
+google-generativeai
+llama-cpp-python
