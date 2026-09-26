@@ -59,7 +59,7 @@ async def call_nvidia(prompt: str, system: str, timeout: float) -> Optional[dict
     key = os.getenv("NVIDIA_API_KEY")
     if not key: return None
     payload = {
-        "model": "meta/llama3-70b-instruct",
+        "model": "z-ai/glm-5.3",
         "messages": [{"role": "system", "content": system + "\n\nRETURN JSON ONLY."}, {"role": "user", "content": prompt}],
         "temperature": 0.3,
         "response_format": {"type": "json_object"}
