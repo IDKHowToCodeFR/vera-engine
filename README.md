@@ -26,10 +26,10 @@ The system operates on a highly optimized, deterministic fail-fast fallback casc
 ### 🌊 4-Tier Fail-Fast Cascade
 Instead of relying on a single point of failure, the engine delegates composition to a highly available 4-tier chain:
 
-1. **Tier 1 (Speed & Intelligence)**: NVIDIA NIM (`llama-3.3-70b-instruct`) - 5s timeout.
-2. **Tier 2 (Fast Failover)**: Groq (`llama-3.3-70b-versatile`) - 4s timeout.
+1. **Tier 1 (Speed & Intelligence)**: NVIDIA NIM (`nvidia/nemotron-3-ultra-550b-a55b`) - 5s timeout.
+2. **Tier 2 (Fast Failover)**: Groq (`openai/gpt-oss-20b`) - 4s timeout.
 3. **Tier 3 (Secondary Failover)**: Gemini (`gemini-2.5-flash`) - 4s timeout.
-4. **Tier 4 (Local Airgap)**: Natively executed `qwen2.5-3b-instruct` via `llama-cpp-python` with **strict LlamaGrammar enforcement**.
+4. **Tier 4 (Local Airgap)**: Natively executed `qwen2.5-7b-instruct` or `qwen2.5-3b-instruct` (based on system latency) via `llama-cpp-python` with **strict LlamaGrammar enforcement**.
 
 > [!TIP]
 > **Dynamic Time Budgeting**
@@ -62,5 +62,5 @@ Instead of relying on a single point of failure, the engine delegates compositio
 
 * **Framework**: FastAPI / Uvicorn (Port `8080`)
 * **Local SLM Execution**: `llama-cpp-python` (Pre-compiled CPU Wheels)
-* **Models**: `Llama 3.3 70B`, `Gemini 2.5 Flash`, `Qwen2.5 3B`
+* **Models**: `Nemotron 3 Ultra 550B`, `GPT OSS 20B`, `Gemini 2.5 Flash`, `Qwen2.5 7B/3B`
 * **Infrastructure**: Dockerized `python:3.10-slim` on Hugging Face Spaces

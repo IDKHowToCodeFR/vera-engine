@@ -112,10 +112,10 @@ To ensure 100% uptime and the best possible latency, the system utilizes a **Tie
 ```mermaid
 flowchart TD
     A[Generate Message Request] --> B{4-Tier Fallback Chain}
-    B -->|Tier 1: Speed & Intel| C[NVIDIA NIM: llama-3.3-70b]
-    B -->|Tier 2: Fast Failover| D[Groq: llama-3.3-70b]
+    B -->|Tier 1: Speed & Intel| C[NVIDIA NIM: nemotron-3-ultra-550b-a55b]
+    B -->|Tier 2: Fast Failover| D[Groq: gpt-oss-20b]
     B -->|Tier 3: Sec. Failover| E[Gemini: 2.5-flash]
-    B -->|Tier 4: Local Airgap| F[Local Llama-CPP: qwen2.5-3b-instruct]
+    B -->|Tier 4: Local Airgap| F[Local Llama-CPP: qwen2.5-7b-instruct / 3b-instruct]
 
     C -.->|Timeout / Error| D
     D -.->|Timeout / Error| E
@@ -129,7 +129,7 @@ flowchart TD
 ```
 
 * **Tier 1-3 (Cloud-Speed Models):** Defaults to robust APIs with fail-fast HTTP error handling. Since inference happens off-server, the system simply proxies JSON, operating well within the 30s limit. 
-* **Tier 4 (The Local Safety Net):** Gracefully cascades to `qwen2.5-3b-instruct-q4_k_m.gguf` via `llama-cpp-python` if cloud providers fail or time out. 
+* **Tier 4 (The Local Safety Net):** Gracefully cascades to `qwen2.5-7b-instruct-q4_k_m.gguf` or `qwen2.5-3b-instruct-q4_k_m.gguf` via `llama-cpp-python` if cloud providers fail or time out. 
 * **Auto-Repair Loop**: Outputs are parsed through `validate_output`. If a taboo word, word-count breach, or malformed schema is detected, the engine dynamically recalculates the tier budget and issues a self-correction prompt *before* failing over to the next tier.
 
 ---
